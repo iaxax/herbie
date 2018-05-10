@@ -181,7 +181,7 @@
 		   (not (matches? constexpr `(/ 0)))
 		   (andmap real? (cdr constexpr)))
 	  (let ([res (eval-const-expr constexpr)])
-	    (when (and (ordinary-value? res) (exact? res))
+	    (when (ordinary-value? res)
 	      (reduce-to-new! eg en res))))))))
 
 (define (hash-set*+ hash assocs)
@@ -225,19 +225,6 @@
 (module+ test
   (require rackunit)
 
-  (define (exactn? a)
-    (and (number? a) (exact? a)))
-
-  (define (handle-exact-evaluation-bug expr)
-    ;; TODO: This wouldn't be necessary if exact evaluation worked
-    (match expr
-      [`(+ ,(? exactn? a) ,(? exactn? b)) (+ a b)]
-      [`(- ,(? exactn? a) ,(? exactn? b)) (- a b)]
-      [`(- ,(? exactn? a)) (- a)]
-      [`(* ,(? exactn? a) ,(? exactn? b)) (* a b)]
-      [`(/ ,(? exactn? a) ,(? exactn? b)) (/ a b)]
-      [_ expr]))
-
   (define test-exprs
     #hash([1 . 1]
           [0 . 0]
@@ -256,6 +243,4 @@
 
   (for ([(original target) test-exprs])
     (with-check-info (['original original])
-       (check-equal? (handle-exact-evaluation-bug
-                      (simplify-expr original #:rules (*simplify-rules*)))
-                     target))))
+       (check-equal? (simplify-expr original #:rules (*simplify-rules*)) target))))
