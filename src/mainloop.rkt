@@ -228,7 +228,8 @@
 	     (debug #:from 'progress #:depth 3 "simplifying candidates")
 	     (simplify!)
 	     (debug #:from 'progress #:depth 3 "adding candidates to table")
-	     (finalize-iter!)))
+	     (finalize-iter!)
+       (*all-alts* (append (*all-alts*) (atab-all-alts (^table^))))))
   (void))
 
 (define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
@@ -245,6 +246,7 @@
         (let* ([current-alts (atab-all-alts (^table^))]
                [new-alt (setup-alt-simplified prog)]
                [all-alts (append current-alts (list new-alt))])
+          (*all-alts* all-alts)
           (^table^ (atab-add-altns (^table^) all-alts))
           (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
             (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
@@ -252,7 +254,7 @@
           (finalize-table!)
           (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
           (if get-context?
-              (list (get-final-combination) (*pcontext*))
+              (list (get-final-combination) (*pcontext*) (*all-alts*))
               (get-final-combination))))))
 
 ;; Finishing Herbie
