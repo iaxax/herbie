@@ -5,8 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
 (provide *pcontext* pcontext-points pcontext-exacts in-pcontext mk-pcontext pcontext?
-         prepare-points prepare-points-period make-exacts
-         oracle-error baseline-error errors errors-score sorted-context-list
+         prepare-points prepare-points-period make-exacts oracle-error oracle-error-idx
+         baseline-error errors errors-score sorted-context-list
          sort-context-on-expr random-subsample)
 
 (module+ test
@@ -282,6 +282,10 @@
     (if (real? inexact)
       (abs (ulp-difference inexact exact))
       (expt 2 (*bit-width*)))))
+
+(define (oracle-error-idx alt-bodies pcontext)
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (cons point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact)) (range (length alt-bodies))))))
 
 (define (oracle-error alt-bodies pcontext)
   (define unique-alts (remove-duplicates alt-bodies))
