@@ -294,7 +294,7 @@
 
 (define (baseline-error alt-bodies pcontext newpcontext)
   (define unique-alts (remove-duplicates alt-bodies))
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) alt-bodies))
+  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext))) unique-alts))
   (errors-score (eval-errors baseline newpcontext)))
 
 (define (errors prog pcontext)
