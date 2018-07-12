@@ -7,7 +7,7 @@
 
 (provide (struct-out alt-delta) (struct-out alt-event) alternative?
          make-alt alt? alt-program alt-change alt-prev alt-add-event
-         make-regime-alt alt-regimes
+         make-regime-alt
          alt-apply alt-rewrite-expression
          alt-errors alt-cost alt-rewrite-rm alt-set-prev
 	       alt-initial alt-changes alt-history-length)
@@ -104,11 +104,3 @@
 
 (define (make-regime-alt new-prog altns splitpoints)
   (alt-event new-prog (list 'regimes splitpoints) altns))
-
-(define (alt-regimes alt)
-  (define (find-regimes prog)
-    (match prog
-      [(list 'if regime _ else-branch)
-       (cons regime (find-regimes else-branch))]
-      [else null]))
-  (find-regimes (caddr (alt-program alt))))
