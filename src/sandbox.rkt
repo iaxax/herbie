@@ -5,6 +5,7 @@
 
 (require "common.rkt" "errors.rkt")
 (require "debug.rkt")
+(require "trace.rkt")
 (require "mainloop.rkt")
 (require "formats/datafile.rkt")
 (require "programs.rkt")
@@ -38,11 +39,13 @@
     list))
 
 (define (get-test-result test #:seed [seed #f] #:setup! [setup! #f]
-                         #:profile [profile? #f] #:debug [debug? #f])
+                         #:profile [profile? #f] #:debug [debug? #f]
+                         #:trace [trace? #f])
   (define (on-error e) `(error ,e ,(bf-precision)))
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug? (*debug-port*))])
+    (parameterize ([*debug-port* (or debug? (*debug-port*))]
+                   [*trace-port* (or trace? (*trace-port*))])
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
       (when setup! (setup!))
@@ -51,7 +54,8 @@
                       (run-improve (test-program test)
                                    (*num-iterations*)
                                    #:get-context #t
-                                   #:precondition (test-precondition test)))
+                                   #:precondition (test-precondition test)
+                                   #:trace trace?))
         (when seed (set-seed! seed))
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])

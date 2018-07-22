@@ -35,6 +35,7 @@
 
   (define threads #f)
   (define report-profile? #f)
+  (define report-trace? #f)
   (define report-note #f)
 
   (define seed (random 1 (expt 2 31)))
@@ -101,9 +102,11 @@
      (set! threads (string->thread-count th))]
     [("--profile") "Whether to profile each run"
      (set! report-profile? true)]
+    [("--trace") "Whether to trace the chain of expression transformation"
+     (set! report-trace? true)]
     #:args (input output)
     (check-operator-fallbacks!)
-    (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (make-report (list input) #:dir output #:profile report-profile? #:trace report-trace? #:note report-note #:threads threads)]
 
    #:args files
    (begin

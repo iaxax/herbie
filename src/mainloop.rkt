@@ -3,6 +3,7 @@
 (require "common.rkt")
 (require "glue.rkt")
 (require "programs.rkt")
+(require "trace.rkt")
 (require "points.rkt")
 (require "core/localize.rkt")
 (require "core/taylor.rkt")
@@ -231,7 +232,7 @@
 	     (finalize-iter!)))
   (void))
 
-(define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE])
+(define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE] #:trace [trace? #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
   (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))

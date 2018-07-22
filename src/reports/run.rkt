@@ -16,13 +16,13 @@
 (require "../errors.rkt")
 (provide (all-defined-out))
 
-(define (make-report bench-dirs #:dir dir #:profile profile? #:note note #:threads threads)
+(define (make-report bench-dirs #:dir dir #:profile profile? #:trace trace? #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define tests (allowed-tests bench-dirs))
   (define results
-    (get-test-results tests #:threads threads #:seed seed #:profile profile? #:dir dir))
+    (get-test-results tests #:threads threads #:seed seed #:profile profile? #:trace trace? #:dir dir))
   (define info (make-report-info (map cdr (filter values results)) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
