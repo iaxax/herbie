@@ -1,5 +1,6 @@
 #lang racket
 
+(require data/queue)
 (require math/bigfloat math/flonum)
 (require "common.rkt" "syntax/syntax.rkt" "errors.rkt" "bigcomplex.rkt")
 
@@ -11,7 +12,7 @@
          location? expr?
          location-do location-get location-parent location-sibling
          eval-prog
-         compile expression-cost program-cost
+         compile expression-cost program-cost program-bfs
          free-variables unused-variables replace-expression
          eval-exact eval-const-expr
          desugar-program expr->prog)
@@ -205,6 +206,24 @@
 
 (define (program-cost prog)
   (expression-cost (program-body prog)))
+
+;; a breadth-first-search serialization of a program
+(define (program-bfs prog)
+  (let ([q (make-queue)]
+        [result empty])
+    (when prog
+      (enqueue! q prog))
+    
+    (for ([i (in-naturals)]) #:break (= (queue-length q) 0)
+      (let ([expr (dequeue! q)])
+        (if (list? expr)
+            (begin
+              (set! result (cons (car expr) result))
+              (for ([sub-expr (cdr expr)])
+                (enqueue! q sub-expr)))
+            (set! result (cons expr result)))))
+    
+    (reverse result)))
 
 (define (expression-cost expr)
   (for/sum ([step (second (compile expr))])

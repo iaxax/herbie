@@ -13,7 +13,17 @@
         [(define (write-proc rule port mode)
            (display "#<rule " port)
            (write (rule-name rule) port)
-           (display ">" port))])
+           (display ">" port))]
+           
+        #:methods gen:equal+hash
+        [(define (equal-proc r1 r2 equal?-recur)
+          (equal?-recur (rule-name r1) (rule-name r2)))
+        
+        (define (hash-proc r hash-recur)
+          (hash-recur (rule-name r)))
+
+        (define (hash2-proc r hash2-recur)
+          (hash2-recur (rule-name r)))])
 
 (define *rulesets* (make-parameter '()))
 

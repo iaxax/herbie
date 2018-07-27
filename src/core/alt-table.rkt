@@ -7,6 +7,7 @@
 (provide
  (contract-out
   (make-alt-table (pcontext? alt? . -> . alt-table?))
+	(atab-alt-points (alt-table? alt? . -> . list?))
   (atab-all-alts (alt-table? . -> . (listof alt?)))
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-add-altns (alt-table? (listof alt?) . -> . alt-table?))
@@ -38,6 +39,9 @@
 				  pt))
 	      (hash initial-alt #f)
 	      context))
+
+(define (atab-alt-points atab alt)
+	(hash-ref (alt-table-alt->points atab) alt))
 
 (define (atab-new-context atab ctx)
   (let* ([old-done (alt-table-alt->done? atab)]

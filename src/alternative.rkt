@@ -48,13 +48,13 @@
   (match altn
     [(alt-delta _ cng _) cng]
     [(alt-event _ _ '()) #f]
-    [(alt-event _ _ `(,prev ,_ ...)) (alt-change prev)]))
+    [(alt-event _ event `(,prev ,_ ...)) event]))
 
 (define (alt-prev altn)
   (match altn
     [(alt-delta _ _ prev) prev]
     [(alt-event _ _ '()) #f]
-    [(alt-event _ _ `(,prev ,_ ...)) (alt-prev prev)]))
+    [(alt-event _ _ `(,prev ,_ ...)) prev]))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*pcontext*)))

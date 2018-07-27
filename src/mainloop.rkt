@@ -147,7 +147,7 @@
     (apply append
 	   (for/list ([location (^locs^)] [n (in-naturals 1)])
 	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-	     (alt-rewrite (alt-add-event (^next-alt^) '(start rm)) #:root location))))
+	     (alt-rewrite (^next-alt^) #:root location))))
   (^children^
    (append (^children^) rewritten))
   (^gened-rewrites^ #t)
@@ -253,8 +253,8 @@
           (finalize-table!)
           (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
           (if get-context?
-              (list (get-final-combination) (*pcontext*))
-              (get-final-combination))))))
+              (list (get-final-combination #:trace trace?) (*pcontext*))
+              (get-final-combination #:trace trace?))))))
 
 ;; Finishing Herbie
 (define (finalize-table!)
@@ -262,14 +262,21 @@
     (^table^ (post-process (^table^) timeline-event!)))
   (void))
 
-(define (get-final-combination)
+(define (get-final-combination #:trace trace?)
   (define joined-alt
     (if (flag-set? 'reduce 'regimes)
       (let ([log! (timeline-event! 'regimes)])
         (match-let ([`(,tables ,splitpoints) (split-table (^table^))])
           (if (= (length tables) 1)
-              (extract-alt (car tables))
-              (combine-alts splitpoints (map extract-alt tables)))))
+              (let ([final-alt (extract-alt (car tables))])
+                (when trace?
+                  (trace-alt final-alt (atab-alt-points (^table^) final-alt)))
+                final-alt)
+              (let ([final-alts (map extract-alt tables)])
+                (when trace?
+                  (for ([alt final-alts])
+                    (trace-alt alt (atab-alt-points (^table^) alt))))
+                  (combine-alts splitpoints final-alts)))))
       (extract-alt (^table^))))
   (define reduced-alt (remove-pows joined-alt))
   (define cleaned-alt (apply alt-apply reduced-alt (simplify-fp-safe reduced-alt)))

@@ -93,3 +93,29 @@
 
 (define *herbie-branch*
   (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
+
+;; we encode symbol(like '+', '-', ...) into integer
+;; id = *operator-id-base* + index
+(define *operator-id-base* (make-parameter 65536))
+
+;; we encode variables(like 'x', 'y', ...) into integer
+;; id = *variable-id-base* + index
+(define *variable-id-base* (make-parameter 60000))
+
+;; we serialize a program in breadth-first-search style
+;; the length is limited by *program-max-length*
+(define *program-max-length* (make-parameter 480))
+
+;; max number of variables in a program
+(define *variable-max-num* (make-parameter 30))
+
+;; when length(program) < *program-max-length*
+;; append *program-placeholder* to program
+(define *program-placeholder* (make-parameter 0))
+
+;; when length(variable) < *variable-max-num*
+;; append *variable-placeholder* to variable
+(define *variable-placeholder* (make-parameter 0))
+
+;; max number of rules in the rule set
+(define *rule-max-num* (make-parameter 1024))
