@@ -17,3 +17,6 @@ demo.log
 *.class
 cost
 previous
+
+.idea/
+venv/
