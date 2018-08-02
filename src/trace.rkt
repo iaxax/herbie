@@ -23,9 +23,8 @@
       (display point port)
       (display " " port))
 
-    (for ([rule (rewrite-step-rule step)])
-      (display rule port)
-      (display " " port))
+    (display (rewrite-step-rule step) port)
+    (display " " port)
 
     (display (rewrite-step-location step) port)
     (display "\n" port))])
@@ -125,21 +124,17 @@
 
 ;; encode rule into a list of int
 (define (rule-encode rule)
-  (define rule-id (hash-ref rule=>id rule))
-  (build-list (*rule-max-num*)
-    (lambda (x)
-      (if (= x rule-id) 1 0))))
+  (hash-ref rule=>id rule))
 
 ;; encode location into int
 ;; @param location is a list of index(1, 2)
 ;;        1 indicates left child, 2 indicates right child
 ;; we treat location as an integer in base 3
 (define (location-encode location)
-  (define sigmoid (lambda (x) (/ 1 (+ 1 (exp (- x))))))
-  (let ([result 0])
-    (for ([l (reverse location)])
-      (set! result (+ (* result 3) l)))
-    (sigmoid result)))
+  (foldl
+    (lambda (x result) (+ (* result 3) x))
+    0
+    (reverse location)))
 
 ;; trace all rewrite steps and return them as a list of #<rewrite-step>
 (define (trace-rewrite-steps alt points)

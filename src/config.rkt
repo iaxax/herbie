@@ -107,7 +107,7 @@
 (define *program-max-length* (make-parameter 480))
 
 ;; max number of variables in a program
-(define *variable-max-num* (make-parameter 30))
+(define *variable-max-num* (make-parameter 32))
 
 ;; when length(program) < *program-max-length*
 ;; append *program-placeholder* to program
@@ -116,6 +116,3 @@
 ;; when length(variable) < *variable-max-num*
 ;; append *variable-placeholder* to variable
 (define *variable-placeholder* (make-parameter 0))
-
-;; max number of rules in the rule set
-(define *rule-max-num* (make-parameter 1024))
