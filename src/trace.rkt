@@ -106,7 +106,7 @@
         (cond
           [(hash-has-key? var-bindings token) (hash-ref var-bindings token)]
           [(hash-has-key? symbol=>id   token) (hash-ref symbol=>id   token)]
-          [(number? token) token]
+          [(number? token) (exact->inexact token)]
           [else (error (string-append "unkown symbol '" (symbol->string token) "' in program"))])))
 
     (define padding (- (*program-max-length*) (length alt-encode)))
