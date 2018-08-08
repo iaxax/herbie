@@ -126,15 +126,18 @@
 (define (rule-encode rule)
   (hash-ref rule=>id rule))
 
-;; encode location into int
+;; encode location into float
 ;; @param location is a list of index(1, 2)
 ;;        1 indicates left child, 2 indicates right child
 ;; we treat location as an integer in base 3
+;; and apply sigmoid function to the final result
 (define (location-encode location)
-  (foldl
-    (lambda (x result) (+ (* result 3) x))
-    0
-    (reverse location)))
+  (define (sigmoid x) (/ 1.0 (+ 1.0 (exp (- x)))))
+  (sigmoid
+    (foldl
+      (lambda (x result) (+ (* result 3) x))
+      0
+      (reverse location))))
 
 ;; trace all rewrite steps and return them as a list of #<rewrite-step>
 (define (trace-rewrite-steps alt points)
