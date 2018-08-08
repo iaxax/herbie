@@ -69,7 +69,7 @@
 
 (define (make-worker)
   (place ch
-    (let loop ([seed #f] [profile? #f] [dir #f])
+    (let loop ([seed #f] [profile? #f] [trace? #f] [dir #f])
       (match (place-channel-get ch)
 	[`(init
 	   rand ,vec
@@ -77,12 +77,14 @@
 	   num-iters ,iterations
            points ,points
            profile? ,profile
+           trace? ,trace
            dir ,path
            timeout ,timeout
            reeval ,reeval)
 
 	 (set! seed vec)
          (set! profile? profile)
+         (set! trace? trace)
          (set! dir path)
 	 (*flags* flag-table)
 	 (*num-iterations* iterations)
@@ -90,10 +92,10 @@
          (*timeout* timeout)
          (*reeval-pts* reeval)]
         [`(apply ,self ,id ,test)
-         (let ([result (run-test id test #:seed seed #:profile profile? #:dir dir)])
+         (let ([result (run-test id test #:seed seed #:profile profile? #:trace trace? #:dir dir)])
            (place-channel-put ch
              `(done ,id ,self ,result)))])
-      (loop seed profile? dir))))
+      (loop seed profile? trace? dir))))
 
 (define (print-test-result data)
   (match-define (cons fpcore tr) data)
@@ -117,6 +119,7 @@
            num-iters ,(*num-iterations*)
            points ,(*num-points*)
            profile? ,profile?
+           trace? ,trace?
            dir ,dir
            timeout ,(*timeout*)
            reeval ,(*reeval-pts*)))
