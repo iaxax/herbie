@@ -20,3 +20,4 @@ previous
 
 .idea/
 venv/
+*.pyc
