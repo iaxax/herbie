@@ -8,7 +8,7 @@
 (provide
  (all-from-out "../syntax/rules.rkt")
  pattern-substitute pattern-match
- rewrite-expression-head rewrite-expression
+ rewrite-expression-head rewrite-expression compute-changes
  (struct-out change) change-apply changes-apply rule-rewrite)
 
 ;; Our own pattern matcher.
@@ -114,6 +114,65 @@
                  (write (cdr bind) port)
                  (display ", " port))))
            (display ">" port))])
+
+;; Given a program and a rule
+;; If the rule can be applied to the expression, return all #<change>s
+;; Otherwise return an empty list
+(define (compute-changes program rule)
+
+  ;; If expression is consistent with pattern, return the bindings between them
+  ;; Otherwise return #f
+  (define (get-bindings expr pattern)
+
+    ;; Get bindings between expr and pattern
+    ;; Note: If some part of the expr isn't consistent with the corresponding part of the pattern,
+    ;;       the binding of this part is represented as #f
+    (define bindings
+      (reap (sow)
+        (let loop ([expr expr] [pattern pattern])
+          (cond
+            [(variable? pattern) (sow (cons pattern expr))]
+            [(constant? pattern) (sow (and (constant? expr) (equal? expr pattern)))]
+            [(and (list? expr) (list? pattern))
+              (if (and (= (length expr) (length pattern)) (and (not (empty? pattern)) (equal? (car expr) (car pattern))))
+                (for ([i (in-naturals)] [sube expr] [subp pattern] #:when (> i 0))
+                    (loop sube subp))
+              (sow #f))]
+            [else (sow #f)]))))
+
+    ;; Traversal the bindings and tell whether expr and pattern are matched
+    ;; If matched, return an equivalent hash table, otherwise return #f
+    (define (match? bindings)
+      (let loop ([bindings bindings] [ht (make-hash)])
+        (cond
+          [(empty? bindings) ht]
+          [(boolean? (car bindings)) (if (car bindings) (loop (cdr bindings) ht) #f)]
+          [(hash-has-key? ht (caar bindings)) #f]
+          [else
+            (begin
+              (hash-set! ht (caar bindings) (cdar bindings))
+              (loop (cdr bindings) ht))])))
+
+    ;; Convert a hash table to bindings (a list of pair)
+    (define (transfer-to-bindings ht)
+      (reap (sow)
+        (hash-for-each ht
+          (lambda (k v)
+            (sow (cons k v))))))
+
+    (let ([ht (match? bindings)])
+      (if ht (transfer-to-bindings ht) #f)))
+
+  ;; Traversal all locations of the expr
+  (reap [sow]
+    (let loop ([expr (list-ref program 2)] [pattern (rule-input rule)] [location '(2)])
+      (let ([bindings (get-bindings expr pattern)])
+        (when bindings
+          (sow (change rule (reverse location) bindings))))
+      (when (list? expr)
+        (for ([i (in-naturals)] [sube expr] #:when (> i 0))
+          (loop sube pattern (cons i location)))))))
+        
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))
