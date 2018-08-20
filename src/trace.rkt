@@ -7,7 +7,9 @@
 (require "syntax/rules.rkt")
 (require "core/matcher.rkt")
 
-(provide *trace-port* trace-alt)
+(provide
+  *trace-port* trace-alt alternative-encode points-encode location-encode location-decode
+  id=>rule simplify-rule taylor+0 taylor+inf taylor-inf special-rule?)
 
 ;; rewrite-step corresponds to a train data of the neural network
 ;; input is alternative + point
@@ -31,15 +33,23 @@
 
 (define *trace-port* (make-parameter (current-output-port)))
 
-(define simply-rule (rule 'simplify '() '()))
+(define simplify-rule (rule 'simplify '() '()))
 (define taylor+0   (rule 'taylor+0 '() '()))
 (define taylor+inf (rule 'taylor+inf '() '()))
 (define taylor-inf (rule 'taylor-inf '() '()))
 
+(define (special-rule? rule)
+  (cond
+    [(equal? rule simplify-rule) #t]
+    [(equal? rule taylor+0) #t]
+    [(equal? rule taylor+inf) #t]
+    [(equal? rule taylor-inf) #t]
+    [else #f]))
+
 ;; a map from id to rule
 (define id=>rule
   (let ([ht (make-hash)])
-    (hash-set! ht 0 simply-rule)
+    (hash-set! ht 0 simplify-rule)
     (hash-set! ht 1 taylor+0)
     (hash-set! ht 2 taylor+inf)
     (hash-set! ht 3 taylor-inf)
@@ -52,7 +62,7 @@
 ;; a map from rule to id
 (define rule=>id
   (let ([ht (make-hash)])
-    (hash-set! ht simply-rule 0)
+    (hash-set! ht simplify-rule 0)
     (hash-set! ht taylor+0 1)
     (hash-set! ht taylor+inf 2)
     (hash-set! ht taylor-inf 3)
@@ -111,16 +121,18 @@
 
     (define padding (- (*program-max-length*) (length alt-encode)))
 
-    (if (> padding 0)
-      (append alt-encode (build-list padding (lambda (x) (*program-placeholder*))))
-      alt-encode)))
+    (cond
+      [(> padding 0) (append alt-encode (build-list padding (lambda (x) (*program-placeholder*))))]
+      [(< padding 0) (take alt-encode (*program-max-length*))]
+      [else alt-encode])))
 
 ;; encode points to a list of double
 (define (points-encode points)
   (define padding (- (*variable-max-num*) (length points)))
-  (if (> padding 0)
-    (append points (build-list padding (lambda (x) (*variable-placeholder*))))
-    points))
+  (cond 
+    [(> padding 0) (append points (build-list padding (lambda (x) (*point-placeholder*))))]
+    [(< padding 0) (take points (*variable-max-num*))]
+    [else points]))
 
 ;; encode rule into a list of int
 (define (rule-encode rule)
@@ -138,6 +150,14 @@
       (lambda (x result) (+ (* result 3) x))
       0
       (reverse location))))
+
+;; Inverse function of location-encode, change integer to list
+(define (location-decode location)
+  (define (logit x) (log (/ x (- 1 x))))
+  (let loop ([loc (exact-round (max 2 (logit location)))] [result '()])
+    (if (= loc 0)
+      (reverse result)
+      (loop (quotient loc 3) (cons (remainder loc 3) result)))))
 
 ;; trace all rewrite steps and return them as a list of #<rewrite-step>
 (define (trace-rewrite-steps alt points)

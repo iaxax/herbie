@@ -94,25 +94,36 @@
 (define *herbie-branch*
   (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
 
-;; we encode symbol(like '+', '-', ...) into integer
-;; id = *operator-id-base* + index
+;; Symbols(like '+', '-', ...) are encoded into integer
+;; encoded-value = *operator-id-base* + index
 (define *operator-id-base* (make-parameter 65536))
 
-;; we encode variables(like 'x', 'y', ...) into integer
-;; id = *variable-id-base* + index
+;; Variables(like 'x', 'y', ...) are encoded into integer
+;; encoded-value = *variable-id-base* + index
 (define *variable-id-base* (make-parameter 60000))
 
-;; we serialize a program in breadth-first-search style
-;; the length is limited by *program-max-length*
+;; Max length of a program
 (define *program-max-length* (make-parameter 480))
 
-;; max number of variables in a program
+;; Max number of variables in a program
 (define *variable-max-num* (make-parameter 32))
 
-;; when length(program) < *program-max-length*
-;; append *program-placeholder* to program
+;; Placeholder for program when the length of program
+;; is less than *program-max-length*
 (define *program-placeholder* (make-parameter 0))
 
-;; when length(variable) < *variable-max-num*
-;; append *variable-placeholder* to variable
-(define *variable-placeholder* (make-parameter 0))
+;; Placeholder for points when the number of points
+;; is less than *variable-max-num*
+(define *point-placeholder* (make-parameter 0))
+
+;; Host and port of socket server which provides rule selection service
+(define *socket-host* (make-parameter "localhost"))
+(define *socket-port* (make-parameter 4399))
+
+;; Max errors between approximate and exact value
+;; Error represents the number of floating-point values between the approximate and exact values
+(define *double-error-threshold* (make-parameter 40))
+
+;; Same as *double-error-threshold*,
+;; but only works for single precision floating-point numbers
+(define *float-error-threshold* (make-parameter 20))
