@@ -16,7 +16,8 @@
 (provide remove-pows setup-prog setup-alt-simplified post-process
          split-table extract-alt combine-alts
          best-alt simplify-alt completely-simplify-alt
-         taylor-alt zach-alt)
+         taylor-alt zach-alt
+         transform+0 transform+inf transform-inf)
 
 (define initial-fuel '())
 
@@ -122,30 +123,46 @@
 	 [table* (atab-add-altns table (map maybe-simplify alts*))])
     table*))
 
+
+(define transform+0 `(0 ,identity ,identity))
+
+(define transform+inf
+  (let ([invert-x (λ (x) `(/ 1 ,x))])
+    `(inf ,invert-x ,invert-x)))
+
+(define transform-inf
+  (let ([ninvert-x (λ (x) `(/ 1 (- ,x)))])
+    `(-inf ,ninvert-x ,ninvert-x)))
+
 (define transforms-to-try
-  (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
-	[ninvert-x (λ (x) `(/ 1 (- ,x)))])
-    `((0 ,identity ,identity)
-      (inf ,invert-x ,invert-x)
-      (-inf ,ninvert-x ,ninvert-x)
+  (let ([exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))])
+    `(,transform+0
+      ,transform+inf
+      ,transform-inf
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
-(define (taylor-alt altn loc)
+(define (taylor-alt altn loc [transform-rule #f])
   ; BEWARE WHEN EDITING: the free variables of an expression can be null
   (define expr (location-get loc (alt-program altn)))
-  (match (type-of expr (for/hash ([var (free-variables expr)]) (values var 'real)))
-    ['real
-      (for/list ([transform transforms-to-try])
-        (match transform
-        [(list name f finv)
+
+  (define (do-taylor transform)
+    (match transform
+      [(list name f finv)
         (alt-event
           (location-do loc (alt-program altn)
-                       (λ (expr) (let ([fv (free-variables expr)])
-                                      (if (null? fv) expr
-                                          (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
+            (λ (expr) (let ([fv (free-variables expr)])
+              (if (null? fv) expr
+                (approximate expr fv #:transform (map (const (cons f finv)) fv))))))
           `(taylor ,name ,loc)
-          (list altn))]))]
+          (list altn))]))
+
+  (match (type-of expr (for/hash ([var (free-variables expr)]) (values var 'real)))
+    ['real
+      (if transform-rule
+        (do-taylor transform-rule)
+        (for/list ([transform transforms-to-try])
+          (do-taylor transform)))]
     ['complex
       (list altn)]))
 
