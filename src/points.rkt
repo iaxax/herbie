@@ -5,8 +5,8 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext pcontext?
-         prepare-points prepare-points-period make-exacts
-         errors errors-score sorted-context-list sort-context-on-expr
+         prepare-points prepare-points-period make-exacts get-exact point=>error
+         errors error errors-score sorted-context-list sort-context-on-expr
          random-subsample)
 
 (module+ test
@@ -95,6 +95,11 @@
 		       (list->vector exacts))
 		(begin (assert (not (= 0 (vector-length exacts))))
 		       exacts))))
+
+;; Given a point, return the exact value of f(point)
+;; where f is the program to be optimized
+(define (get-exact pcontext point)
+  (for/first ([(p e) (in-pcontext pcontext)] #:when (equal? p point)) e))
 
 (define (random-subsample pcontext n)
   (let*-values ([(old-points) (pcontext-points pcontext)]
@@ -268,15 +273,29 @@
 	 [exacts* (filter-exacts pts exacts)])
     (mk-pcontext pts* exacts*)))
 
+;; Calculate the error of the program with a specific input
+(define (error prog point exact)
+  (let* ([fn (eval-prog prog 'fl)]
+	       [max-ulps (expt 2 (*bit-width*))]
+         [out (fn point)])
+    (add1
+      (if (real? out)
+          (abs (ulp-difference out exact))
+          max-ulps))))
+
 (define (errors prog pcontext)
-  (let ([fn (eval-prog prog 'fl)]
-	[max-ulps (expt 2 (*bit-width*))])
-    (for/list ([(point exact) (in-pcontext pcontext)])
-      (let ([out (fn point)])
-	(add1
-	 (if (real? out)
-	     (abs (ulp-difference out exact))
-	     max-ulps))))))
+  (for/list ([(point exact) (in-pcontext pcontext)])
+    (error prog point exact)))
+
+;; Given a set of points and a program, return a map from point to error
+;; Only points whose error is greater than max-error are included
+(define (point=>error prog pcontext max-error)
+  (let ([ht (make-hash)])
+    (for ([(point exact) (in-pcontext pcontext)])
+      (let ([err (error prog point exact)])
+        (when (>= err max-error)
+          (hash-set! ht point err))))
+    ht))
 
 (define (errors-score e)
   (let-values ([(reals unreals) (partition ordinary-value? e)])
