@@ -15,8 +15,8 @@
 
 (provide remove-pows setup-prog setup-alt-simplified post-process
          split-table extract-alt combine-alts
-         best-alt simplify-alt completely-simplify-alt
-         taylor-alt zach-alt
+         best-alt best-alt-at-point simplify-alt completely-simplify-alt
+         taylor-alt zach-alt alt-apply-many*
          transform+0 transform+inf transform-inf)
 
 (define initial-fuel '())
@@ -74,8 +74,32 @@
 	  (argmins (compose errors-score alt-errors)
 		   alts)))
 
+(define (best-alt-at-point alts point exact)
+  (argmin alt-cost
+    (argmins (curry alt-error point exact)
+      alts)))
+
 (define (simplify-alt altn)
   (apply alt-apply altn (simplify altn)))
+
+;; Apply a change to an alternative
+;; Different from alt-apply-one, simplify and taylor can also be a change
+(define (alt-apply-one* alt change)
+  (let ([rule (change-rule change)])
+    (cond
+      [(equal? rule simplify-rule) (apply alt-apply alt (simplify alt))]
+      [(equal? rule taylor+0) (taylor-alt alt (change-location change) transform+0)]
+      [(equal? rule taylor+inf) (taylor-alt alt (change-location change) transform+inf)]
+      [(equal? rule taylor-inf) (taylor-alt alt (change-location change) transform-inf)]
+      [else
+        (alt-apply-one change alt)])))
+
+;; Apply a list of changes to a list of alternatives
+;; Each change is applied to the corresponding alternative
+;; Note: the length of changes and alternatives should be equal
+(define (alt-apply-many* alts changes)
+  (for/list ([alt alts] [change changes])
+    (alt-apply-one* alt change)))
 
 (define (completely-simplify-alt altn)
   (let* ([prog (alt-program altn)]

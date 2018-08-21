@@ -7,7 +7,7 @@
 
 (provide
  (all-from-out "../syntax/rules.rkt")
- pattern-substitute pattern-match
+ pattern-substitute pattern-match get-nearest-change
  rewrite-expression-head rewrite-expression compute-changes
  (struct-out change) change-apply changes-apply rule-rewrite)
 
@@ -165,14 +165,30 @@
 
   ;; Traversal all locations of the expr
   (reap [sow]
-    (let loop ([expr (list-ref program 2)] [pattern (rule-input rule)] [location '(2)])
+    (let loop ([expr (program-body program)] [pattern (rule-input rule)] [location '(2)])
       (let ([bindings (get-bindings expr pattern)])
         (when bindings
           (sow (change rule (reverse location) bindings))))
       (when (list? expr)
         (for ([i (in-naturals)] [sube expr] #:when (> i 0))
           (loop sube pattern (cons i location)))))))
-        
+
+ ;; Select a change whose apply location is the nearest among all changes
+  (define (get-nearest-change changes location)
+    ;; Distance comparision function
+    (define (nearer-change change1 change2)
+      (let* ([location1 (change-location change1)]
+             [location2 (change-location change2)]
+             [distance1 (abs (- (location-encode location) (location-encode location1)))]
+             [distance2 (abs (- (location-encode location) (location-encode location2)))])
+        (if (<= distance1 distance2) change1 change2)))
+
+    (let loop ([changes changes] [nearest #f])
+      (cond
+        [(empty? changes) nearest]
+        [(equal? nearest #f) (loop (cdr changes) (car changes))]
+        [else
+          (loop (cdr changes) (nearer-change nearest (car changes)))])))
 
 (define (rewrite-expression expr #:destruct [destruct? #f] #:root [root-loc '()])
   (define env (for/hash ([v (free-variables expr)]) (values v 'real)))

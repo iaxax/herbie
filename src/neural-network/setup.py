@@ -5,7 +5,6 @@ import model
 import dataset
 from argparse import ArgumentParser
 
-
 class ServiceHandler(socketserver.StreamRequestHandler):
     """
     A Socket Server
@@ -22,6 +21,7 @@ class ServiceHandler(socketserver.StreamRequestHandler):
 
         # Send back the result
         self.wfile.write(bytes(json_prediction, encoding=config.encoding))
+        self.wfile.flush()
 
 
 if __name__ == '__main__':

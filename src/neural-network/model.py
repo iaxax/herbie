@@ -93,13 +93,13 @@ def predict(x):
 
     :param x: A list which consists of encoding expression and floating points
 
-    :return: {'rule': <list>, 'location': <int>}
+    :return: [{'rule': <list>, 'location': <int>}, ...]
              rule is a probability distribution
              location is an encoded integer
     """
 
     predict_input_fn = tf.estimator.inputs.numpy_input_fn(
-        x={"x": np.resize(x, [-1, config.x_size])},
+        x={"x": np.reshape(x, [-1, config.x_size])},
         num_epochs=config.predict_epochs,
         shuffle=False
     )
@@ -111,7 +111,7 @@ def predict(x):
     result = []
     for p in predictions:
         y = p["probabilities"]
-        rule, location = y[:-1], y[-1]
+        rule, location = y[:-1].tolist(), y[-1].tolist()
         result.append({"rule": rule, "location": location})
 
     return result

@@ -2,7 +2,8 @@
 
 (require racket/tcp)
 (require json)
-(require "trace.rkt")
+(require "alternative.rkt")
+(require "points.rkt")
 (require "config.rkt")
 
 (provide get-predict-results)
@@ -12,7 +13,7 @@
 
     (displayln (jsexpr->string
         (for/list ([altn altns] [point points])
-            (append (alternative-encode altn) (points-encode point)))) out)
+            (append (alt-encode altn) (points-encode point)))) out)
     (flush-output out)
 
     (string->jsexpr (read-line in)))

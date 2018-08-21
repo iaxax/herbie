@@ -9,7 +9,7 @@
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables ->flonum ->bf
          replace-leaves location-hash
-         location? expr?
+         location? expr? location-encode location-decode location-fix
          location-do location-get location-parent location-sibling
          eval-prog
          compile expression-cost program-cost program-bfs
@@ -147,6 +147,37 @@
           (reverse (cons 1 (cdr loc*)))]
          [else
           #f]))))
+
+;; Encode location into float
+;; @param location is a list of index(1, 2)
+;;        1 indicates left child, 2 indicates right child
+;; We treat location as an integer in base 3
+;; and apply sigmoid function to the final result
+(define (location-encode location)
+  (define (sigmoid x) (/ 1.0 (+ 1.0 (exp (- x)))))
+  (sigmoid
+    (foldl
+      (lambda (x result) (+ (* result 3) x))
+      0
+      (reverse location))))
+
+;; Inverse function of location-encode, change integer to list
+(define (location-decode location)
+  (define (logit x) (log (/ x (- 1 x))))
+  (let loop ([loc (exact-round (max 2 (logit location)))] [result '()])
+    (if (= loc 0)
+      (reverse result)
+      (loop (quotient loc 3) (cons (remainder loc 3) result)))))
+
+;; Replace bad location with good location
+;; Good location is a list of integers which indicate the location of some part of the program
+(define (location-fix program location)
+  (let loop ([location '(2)] [expr (program-body program)] [lst (cdr location)])
+    (cond
+      [(or (empty? lst) (empty? expr)) (reverse location)]
+      [(= (car lst) 0) (loop (cons 1 location) (list-ref expr 1) (cdr lst))]
+      [(>= (car lst) (length expr)) (loop (cons (sub1 (length expr)) location) (last expr) (cdr lst))]
+      [else (loop (cons (car lst) location) (list-ref expr (car lst)) (cdr lst))])))
 
 (define (eval-prog prog mode)
   (let* ([real->precision (if (equal? mode 'bf) ->bf ->flonum)]

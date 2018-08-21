@@ -7,10 +7,10 @@
 
 (provide (struct-out alt-delta) (struct-out alt-event) alternative?
          make-alt alt? alt-program alt-change alt-prev alt-add-event
-         make-regime-alt
-         alt-apply alt-rewrite-expression
+         make-regime-alt alt-fix alt-encode
+         alt-apply alt-apply-one alt-rewrite-expression
          alt-errors alt-error alt-cost alt-rewrite-rm alt-set-prev
-	 alt-initial alt-changes alt-history-length)
+	       alt-initial alt-changes alt-history-length)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -56,6 +56,23 @@
     [(alt-event _ _ '()) #f]
     [(alt-event _ _ `(,prev ,_ ...)) prev]))
 
+;; Tell whether an alternative is computable
+;; Computable alternative doesn't contain abnormal floating-point values
+(define (alt-computable? alt)
+  (let loop ([expr (program-body (alt-program alt))])
+    (cond
+      [(empty? expr) #t]
+      [(list? expr) (and (loop (car expr)) (loop (cdr expr)))]
+      [(number? expr)
+        (for/and ([abnormal-num '(+inf.0 +inf.f -inf.0 -inf.f +nan.0 +nan.f)])
+          (not (equal? abnormal-num expr)))]
+      [else #t])))
+
+;; Replace incomputable alternatives with default alternatives
+(define (alt-fix defaults alts)
+  (for/list ([default defaults] [alt alts])
+    (if (alt-computable? alt) alt default)))
+
 (define (alt-error point exact altn)
   (error (alt-program altn) point exact))
 
@@ -65,10 +82,12 @@
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
 
+;; Apply a change to an alternative
+(define (alt-apply-one change alt)
+  (alt-delta (change-apply change (alt-program alt)) change alt))
+
 (define (alt-apply altn . changes)
-  (foldl (λ (cng altn)
-            (alt-delta (change-apply cng (alt-program altn)) cng altn))
-         altn changes))
+  (foldl alt-apply-one altn changes))
 
 ;; Gets the initial version of the current alt.
 (define (alt-initial altn)
@@ -107,3 +126,35 @@
 
 (define (make-regime-alt new-prog altns splitpoints)
   (alt-event new-prog (list 'regimes splitpoints) altns))
+
+;; Encode alternative into a list of integer
+(define (alt-encode altn)
+
+  ;; Create bindings between variable and id
+  (define (create-bindings vars)
+    (let ([bindings (make-hash)]
+          [base (*variable-id-base*)])
+      (for ([var vars]
+            [id (in-naturals)])
+        (hash-set! bindings var (+ base id)))
+      bindings))
+
+  (let* ([program (alt-program altn)]
+         [prog-bfs (program-bfs (program-body program))]
+         [vars (program-variables program)]
+         [var-bindings (create-bindings vars)])
+
+    (define alt-encode
+      (for/list ([token prog-bfs])
+        (cond
+          [(hash-has-key? var-bindings token) (hash-ref var-bindings token)]
+          [(has-symbol? token) (symbol-encode token)]
+          [(number? token) (exact->inexact token)]
+          [else (error (string-append "unkown symbol '" (symbol->string token) "' in program"))])))
+
+    (define padding (- (*program-max-length*) (length alt-encode)))
+
+    (cond
+      [(> padding 0) (append alt-encode (build-list padding (lambda (x) (*program-placeholder*))))]
+      [(< padding 0) (take alt-encode (*program-max-length*))]
+      [else alt-encode])))

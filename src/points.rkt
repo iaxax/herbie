@@ -4,7 +4,7 @@
 (require math/bigfloat)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "range-analysis.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext pcontext?
+(provide *pcontext* in-pcontext mk-pcontext pcontext? points-encode
          prepare-points prepare-points-period make-exacts get-exact point=>error
          errors error errors-score sorted-context-list sort-context-on-expr
          random-subsample)
@@ -304,3 +304,11 @@
               (* (*bit-width*) (length unreals)))
            (length e))
         (apply max (map ulps->bits reals)))))
+
+;; Encode points to a list of double
+(define (points-encode points)
+  (define padding (- (*variable-max-num*) (length points)))
+  (cond 
+    [(> padding 0) (append points (build-list padding (lambda (x) (*point-placeholder*))))]
+    [(< padding 0) (take points (*variable-max-num*))]
+    [else points]))

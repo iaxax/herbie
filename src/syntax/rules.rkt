@@ -6,7 +6,9 @@
 (require "syntax.rkt")
 
 (provide (struct-out rule) *complex-rules* rule-valid-at-type? *rules* *simplify-rules* 
-         *fp-safe-simplify-rules* prune-rules!)
+         *fp-safe-simplify-rules* prune-rules!
+         simplify-rule taylor+0 taylor+inf taylor-inf special-rule?
+         has-rule? rule-encode rule-decode has-symbol? symbol-encode)
 
 (struct rule (name input output) ; Input and output are patterns
         #:methods gen:custom-write
@@ -594,6 +596,82 @@
         rules
         '())))
 
+;; Simplify and taylor rule work as markup rules
+(define simplify-rule (rule 'simplify '() '()))
+(define taylor+0   (rule 'taylor+0 '() '()))
+(define taylor+inf (rule 'taylor+inf '() '()))
+(define taylor-inf (rule 'taylor-inf '() '()))
+
+;; A map from id to rule
+(define id=>rule
+  (let ([ht (make-hash)])
+    (hash-set! ht 0 simplify-rule)
+    (hash-set! ht 1 taylor+0)
+    (hash-set! ht 2 taylor+inf)
+    (hash-set! ht 3 taylor-inf)
+
+    (for ([rule (*rules*)]
+          [i (in-naturals)])
+      (hash-set! ht (+ i 10) rule))
+    ht))
+
+;; A map from rule to id
+(define rule=>id
+  (let ([ht (make-hash)])
+    (hash-set! ht simplify-rule 0)
+    (hash-set! ht taylor+0 1)
+    (hash-set! ht taylor+inf 2)
+    (hash-set! ht taylor-inf 3)
+
+    (for ([rule (*rules*)]
+          [i (in-naturals)])
+      (hash-set! ht rule (+ i 2)))
+    ht))
+
+;; Simplify and taylor rule are considered as special rules
+(define (special-rule? rule)
+  (cond
+    [(equal? rule simplify-rule) #t]
+    [(equal? rule taylor+0) #t]
+    [(equal? rule taylor+inf) #t]
+    [(equal? rule taylor-inf) #t]
+    [else #f]))
+
+;; Tell whether the corresponding rule exists
+(define (has-rule? rule-id)
+  (hash-has-key? id=>rule rule-id))
+
+;; Encode rule into integer
+(define (rule-encode rule)
+  (hash-ref rule=>id rule))
+
+;; Decode integer to rule
+(define (rule-decode rule-id)
+  (hash-ref id=>rule rule-id))
+
+(define symbol-set
+  (list
+    '+ '- '* '/ 'pow 'sqrt 'fabs 'sqr 'cbrt 'exp 'log 'E 'sin 'cos    
+    'PI 'tan 'atan 'atan2 'asin 'acos 'sinh 'cosh 'tanh 'asinh
+    'acosh 'atanh 'log1p 'expm1 'hypot 'fma 'TRUE 'FALSE 'not 'and 'or     
+    '< '<= '> '>= 'if 're 'im 'complex 'erf 'erfc))
+  
+;; A map from symbol to id
+(define symbol=>id
+  (let ([ht (make-hash)]
+        [operator-base (*operator-id-base*)])
+    (for ([symbol symbol-set]
+          [offset (in-naturals)])
+      (hash-set! ht symbol (+ offset (*operator-id-base*))))
+  ht))
+
+;; Encode symbol into integer
+(define (symbol-encode symbol)
+  (hash-ref symbol=>id symbol))
+
+(define (has-symbol? symbol)
+  (hash-has-key? symbol=>id symbol))
+
 (module+ test
   (require rackunit math/bigfloat)
   (require "../programs.rkt" "../float.rkt")
@@ -696,4 +774,3 @@
             (match-define (list pt v1 v2) err)
             (with-check-info (['point (map list fv pt)] ['input-value v1] ['output-value v2])
                              (check-false err))))))))
-;

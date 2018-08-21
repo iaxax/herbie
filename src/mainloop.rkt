@@ -12,6 +12,7 @@
 (require "core/simplify.rkt")
 (require "formats/test.rkt")
 (require "core/matcher.rkt")
+(require "socket-client.rkt")
 
 (provide (all-defined-out))
 
@@ -232,24 +233,85 @@
 	     (finalize-iter!)))
   (void))
 
+;; Transform alternatives to maybe better alternatives
+(define (transform altns points)
+
+  ;; Extrac rules from the probablity distribution
+  ;; Sort them by the probability
+  ;; Rule with higher probability is in the front of the one with lower probability
+  (define (extract-rules probabilities)
+    (map (lambda (r) (rule-decode (car r)))
+      (filter (lambda (r) (has-rule? (car r)))
+        (sort
+          (for/list ([id (in-naturals)] [probability probabilities])
+            (cons id probability))
+          (lambda (r1 r2) (>= (cdr r1) (cdr r2)))))))
+
+  ;; Extract rules and locations
+  (define (extract prediction)
+    (for/lists (rules locations) ([pred prediction])
+      (let ([rule (hash-ref pred 'rule)]
+            [location (hash-ref pred 'location)])
+        (values (extract-rules rule) (location-decode location)))))
+
+  ;; Get changes that the alternatives are to apply
+  (define (get-changes altns points)
+    (let-values ([(rules locations) (extract (get-predict-results altns points))])
+      (for/list ([rule rules] [location locations] [altn altns])
+        (let loop ([rule-list rule] [location location])
+          (cond
+            [(empty? rule-list) #f]
+            [(special-rule? (car rule-list)) (change (car rule-list) (location-fix (alt-program altn) location) '())]
+            [else
+              (let ([changes (compute-changes (alt-program altn) (car rule-list))])
+                (if (empty? changes)
+                  (loop (cdr rule-list) location)
+                  (get-nearest-change changes location)))])))))
+
+  (alt-fix altns
+    (alt-apply-many* altns (get-changes altns points))))
+
 (define (run-improve prog iters #:get-context [get-context? #f] #:precondition [precondition 'TRUE] #:trace [trace? #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog #:precondition precondition)
   (if (and (flag-set? 'setup 'early-exit) (< (errors-score (errors (*start-prog*) (*pcontext*))) 0.1))
       (let ([init-alt (make-alt (*start-prog*))])
-	(debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-	(if get-context?
-	    (list init-alt (*pcontext*))
-	    init-alt))
+        (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
+        (if get-context?
+            (list init-alt (*pcontext*))
+            init-alt))
       (begin
-	(debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-        (let* ([current-alts (atab-all-alts (^table^))]
-               [new-alt (setup-alt-simplified prog)]
-               [all-alts (append current-alts (list new-alt))])
-          (^table^ (atab-add-altns (^table^) all-alts))
-          (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-            (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-            (run-iter!))
+        (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+        (let* ([new-alt (setup-alt-simplified prog)]
+               [current-alts (atab-all-alts (^table^))]
+               [all-alts (append current-alts (list new-alt))]
+               [high-error-points 
+                  (point=>error (*start-prog*) (*pcontext*)
+                    (if (flag-set? 'precision 'double)
+                      (*double-error-threshold*) (*float-error-threshold*)))]
+               [points (hash-keys high-error-points)]
+               [alts (build-list (length points) (lambda (x) new-alt))]
+               [paths (map (lambda (x) (list x)) alts)])
+
+          (if trace?
+            (begin
+              (^table^ (atab-add-altns (^table^) all-alts))
+              (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+                (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+                (run-iter!)))
+            (^table^ (atab-add-altns (^table^)
+              (let loop ([alts alts] [paths paths] [n (*num-iterations*)])
+                (if (<= n 0)
+                  (for/list ([path paths] [point points])
+                    (let ([exact (get-exact (*pcontext*) point)])
+                      (best-alt-at-point path point exact)))
+                  (let* ([next-alts (transform alts points)])
+                    (loop
+                      next-alts
+                      (for/list ([next-alt next-alts] [path paths])
+                        (cons next-alt path))
+                      (- n 1))))))))
+
           (finalize-table!)
           (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
           (if get-context?
