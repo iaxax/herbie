@@ -9,7 +9,7 @@
          make-alt alt? alt-program alt-change alt-prev alt-add-event
          make-regime-alt
          alt-apply alt-rewrite-expression
-         alt-errors alt-cost alt-rewrite-rm alt-set-prev
+         alt-errors alt-error alt-cost alt-rewrite-rm alt-set-prev
 	 alt-initial alt-changes alt-history-length)
 
 ;; Alts are a lightweight audit trail.
@@ -55,6 +55,9 @@
     [(alt-delta _ _ prev) prev]
     [(alt-event _ _ '()) #f]
     [(alt-event _ _ `(,prev ,_ ...)) prev]))
+
+(define (alt-error point exact altn)
+  (error (alt-program altn) point exact))
 
 (define (alt-errors altn)
   (errors (alt-program altn) (*pcontext*)))
