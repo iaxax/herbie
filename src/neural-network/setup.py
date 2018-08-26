@@ -43,6 +43,7 @@ if __name__ == '__main__':
     data_parser.add_argument("-t", "--threads", type=int, help="number of threads to use for generating data")
     data_parser.add_argument("-T", "--timeout", type=int, help="timeout(seconds) for each test")
     data_parser.add_argument("-d", "--destination", type=str, help="location to store the data file")
+    data_parser.add_argument("-s", "--source", type=str, help="root directory of herbie")
     data_parser.add_argument("-r", "--racket", type=str, help="path of racket")
 
     # Parse arg
@@ -54,20 +55,21 @@ if __name__ == '__main__':
         print("Server running...")
         server.serve_forever()
 
-    elif args.sub_cmd == 'train':
+    elif args.sub_cmd == 'data':
         # Generate training data
         n_threads = args.threads if args.threads else config.default_n_threads
         timeout = args.timeout if args.timeout else config.default_timeout
+        source_dir = args.source if args.source else os.getcwd()
         output_dir = args.destination if args.destination else config.default_data_dir
         racket_cmd = args.racket if args.racket else config.default_racket_cmd
-        dataset.generate_train_data(racket_cmd, output_dir, n_threads, timeout)
+        dataset.generate_train_data(racket_cmd, source_dir, output_dir, n_threads, timeout)
 
-    elif args.sub_cmd == 'evaluate':
+    elif args.sub_cmd == 'train':
         # Train the model
         train_data_file = args.file if args.file else config.train_data_file
         model.train(train_data_file)
 
-    elif args.sub_cmd == 'data':
+    elif args.sub_cmd == 'evaluate':
         # Evaluate the model
         test_data_file = args.file if args.file else config.test_data_file
         model.evaluate(test_data_file)

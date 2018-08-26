@@ -16,6 +16,7 @@ def load_train_data(file_name):
 
 def generate_train_data(
         racket_cmd=config.default_racket_cmd,
+        herbie_root=os.getcwd(),
         output_dir=config.default_data_dir,
         n_threads=config.default_n_threads,
         timeout=config.default_timeout):
@@ -32,7 +33,6 @@ def generate_train_data(
     # change current working directory to herbie root directory
     os.chdir("../..")
 
-    herbie_root = os.getcwd()
     herbie_rkt = herbie_root + "/src/herbie.rkt"
     bench_dir = herbie_root + "/bench/"
     temp_dir = output_dir + "/temp"
@@ -43,6 +43,9 @@ def generate_train_data(
 
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
+
+    if not os.path.exists(data_file):
+        os.system("touch " + data_file)
 
     # <racket-cmd> <herbie.rkt> report --timeout <N> --threads <N> --seed <S> <input> <output>
     timeout_opt = "--timeout " + str(timeout)
@@ -61,12 +64,15 @@ def generate_train_data(
     print("Data extraction cmd:")
     print(extract_cmd)
 
-    # run herbie benchmark and save data
-    shell = report_cmd + " && " + extract_cmd
-    os.system(shell)
+    # python3 transfer.py -s <input_file> -d <ouput_file>
+    transfer_file = herbie_root + "/src/neural-network/transfer.py"
+    transfer_cmd = "python3 " + transfer_file + " -s " + data_file + " -d " + output_dir + "/data.npy"
+    print("Data transfer cmd:")
+    print(transfer_cmd)
 
-    # transfer data file to npy format
-    np.save(output_dir + "/data.npy", np.loadtxt(data_file))
+    # run herbie benchmark and save data
+    shell = report_cmd + " && " + extract_cmd + " && " + transfer_cmd
+    os.system(shell)
 
     # rm -rf <temp_dir> <data_file>
     remove_cmd = "rm -rf " + temp_dir + " " + data_file
